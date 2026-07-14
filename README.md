@@ -254,13 +254,13 @@ normally after the action.
 
 ## Supported granularity and meter rules
 
-| Value | Result | SolarEdge request strategy |
-| --- | --- | --- |
-| `hourly` | One point per available hour | Windows of at most 31 days |
-| `daily` | One point per available day | Windows of at most 365 days |
-| `monthly` | One point per calendar month | Complete site period |
-| `annual` | One point per calendar year | Complete site period |
-| `lifetime` | One point for the complete site period | Annual data aggregated to one point |
+| Value | Result |
+| --- | --- |
+| `hourly` | One point per available hour |
+| `daily` | One point per available day |
+| `monthly` | One point per calendar month |
+| `annual` | One point per calendar year |
+| `lifetime` | One point for the complete site period |
 
 The requested source must be at least as fine as the target meter cycle. For
 example, hourly data can rebuild a monthly meter, while annual data cannot
