@@ -1,0 +1,30 @@
+{
+  "services": {
+    "update_history": {
+      "name": "Update history",
+      "description": "Downloads the complete SolarEdge production history and permanently replaces raw states and statistics for one standard utility meter.",
+      "fields": {
+        "api_key": {
+          "name": "API key",
+          "description": "SolarEdge Monitoring API key. It is used only for this call."
+        },
+        "site_id": {
+          "name": "Site ID",
+          "description": "Numeric SolarEdge site identifier accessible by the API key."
+        },
+        "target_entity": {
+          "name": "Target utility meter",
+          "description": "Utility meter whose raw states and statistics will be replaced."
+        },
+        "granularity": {
+          "name": "Granularity",
+          "description": "Resolution requested from SolarEdge for the replacement history."
+        },
+        "confirm_replacement": {
+          "name": "Confirm replacement",
+          "description": "Type REPLACE to confirm permanent deletion of existing history."
+        }
+      }
+    }
+  }
+}

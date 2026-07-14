@@ -1,0 +1,99 @@
+update_history:
+  name: Update history
+  description: >-
+    Downloads the complete SolarEdge production history and permanently replaces
+    raw states and statistics for one standard utility meter.
+  fields:
+    api_key:
+      name: API key
+      description: SolarEdge Monitoring API key. Overrides the integration YAML default.
+      required: false
+      selector:
+        text:
+          type: password
+    site_id:
+      name: Site ID
+      description: Numeric site ID accessible by the API key.
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+    target_entity:
+      name: Target utility meter
+      description: Utility meter whose raw states and statistics will be replaced.
+      required: true
+      selector:
+        entity:
+          domain: sensor
+          integration: utility_meter
+    granularity:
+      name: Granularity
+      description: Resolution requested from SolarEdge for the replacement history.
+      required: true
+      selector:
+        select:
+          mode: dropdown
+          options:
+            - label: Hourly
+              value: hourly
+            - label: Daily
+              value: daily
+            - label: Monthly
+              value: monthly
+            - label: Annual
+              value: annual
+            - label: Lifetime
+              value: lifetime
+    confirm_replacement:
+      name: Confirm replacement
+      description: Type REPLACE to confirm permanent deletion of existing history.
+      required: true
+      selector:
+        text:
+
+inspect_history:
+  name: Inspect history
+  description: >-
+    Downloads SolarEdge history from an explicit date and returns the available
+    range without modifying Home Assistant states or recorder data.
+  fields:
+    api_key:
+      name: API key
+      description: SolarEdge Monitoring API key. Overrides the integration YAML default.
+      required: false
+      selector:
+        text:
+          type: password
+    site_id:
+      name: Site ID
+      description: Numeric site ID accessible by the API key.
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+    start_date:
+      name: Start date
+      description: Earliest date to request from SolarEdge.
+      required: true
+      selector:
+        date:
+    granularity:
+      name: Granularity
+      description: Resolution requested from SolarEdge for the inspection.
+      required: true
+      selector:
+        select:
+          mode: dropdown
+          options:
+            - label: Hourly
+              value: hourly
+            - label: Daily
+              value: daily
+            - label: Monthly
+              value: monthly
+            - label: Annual
+              value: annual
+            - label: Lifetime
+              value: lifetime

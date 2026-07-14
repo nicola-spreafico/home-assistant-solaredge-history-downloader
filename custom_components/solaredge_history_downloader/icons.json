@@ -1,0 +1,7 @@
+{
+  "services": {
+    "update_history": {
+      "service": "mdi:history"
+    }
+  }
+}

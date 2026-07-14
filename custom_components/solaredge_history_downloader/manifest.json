@@ -1,0 +1,15 @@
+{
+  "domain": "solaredge_history_downloader",
+  "name": "SolarEdge History Downloader",
+  "after_dependencies": ["sensor"],
+  "codeowners": ["@nicola-spreafico"],
+  "config_flow": false,
+  "dependencies": ["recorder", "utility_meter"],
+  "documentation": "https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/issues",
+  "loggers": ["solaredge"],
+  "requirements": ["solaredge==0.0.4"],
+  "version": "0.1.0"
+}

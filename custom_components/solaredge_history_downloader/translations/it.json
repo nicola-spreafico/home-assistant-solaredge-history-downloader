@@ -1,0 +1,30 @@
+{
+  "services": {
+    "update_history": {
+      "name": "Aggiorna storico",
+      "description": "Scarica tutto lo storico di produzione SolarEdge e sostituisce definitivamente stati e statistiche di un utility meter standard.",
+      "fields": {
+        "api_key": {
+          "name": "Chiave API",
+          "description": "Chiave delle API di monitoraggio SolarEdge. Viene usata solo per questa chiamata."
+        },
+        "site_id": {
+          "name": "ID sito",
+          "description": "Identificativo numerico del sito SolarEdge accessibile con la chiave API."
+        },
+        "target_entity": {
+          "name": "Utility meter di destinazione",
+          "description": "Utility meter del quale verranno sostituiti stati e statistiche."
+        },
+        "granularity": {
+          "name": "Granularita",
+          "description": "Risoluzione richiesta a SolarEdge per lo storico sostitutivo."
+        },
+        "confirm_replacement": {
+          "name": "Conferma sostituzione",
+          "description": "Scrivi REPLACE per confermare la cancellazione definitiva dello storico esistente."
+        }
+      }
+    }
+  }
+}
