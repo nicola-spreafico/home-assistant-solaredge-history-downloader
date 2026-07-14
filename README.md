@@ -66,7 +66,7 @@ First, add the SolarEdge Monitoring API key to `secrets.yaml`:
 solaredge_api_key: YOUR_SOLAREDGE_API_KEY
 ```
 
-Then add the following top-level configuration and restart. Select the site
+Then add the following in `configuration.yaml` and restart. Select the site
 explicitly on every action call:
 
 ```yaml
@@ -96,6 +96,26 @@ own configuration. Home Assistant automation and script traces can retain
 service-call data, so run this destructive maintenance action manually or
 disable/delete its trace when the key must not remain in Home Assistant trace
 storage.
+
+### Inspect history
+
+Use `solaredge_history_downloader.inspect_history` to inspect the SolarEdge
+data period and the points available from a requested start date. This action
+is read-only: it does not modify utility-meter states, recorder history, or
+statistics.
+
+```yaml
+action: solaredge_history_downloader.inspect_history
+data:
+  site_id: 12345678
+  start_date: "2021-01-01"
+  granularity: monthly
+```
+
+The action returns the requested date, the site's available data period, the
+actual returned source range, the number of API requests, and the number of
+downloaded points. It uses the API key from the integration configuration;
+`api_key` can be provided in the action data to override it.
 
 ### Parameters
 
