@@ -67,6 +67,8 @@ points alone.
 
 ### HACS
 
+[![Install with HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nicola-spreafico&repository=home-assistant-solaredge-history-downloader&category=integration)
+
 Use [Install SolarEdge History Downloader with HACS](https://my.home-assistant.io/redirect/hacs_repository/?owner=nicola-spreafico&repository=home-assistant-solaredge-history-downloader&category=integration), or:
 
 1. Open HACS.
