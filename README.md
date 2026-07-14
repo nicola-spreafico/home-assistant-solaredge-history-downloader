@@ -1,6 +1,7 @@
 # SolarEdge History Downloader
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![Install with HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nicola-spreafico&repository=home-assistant-solaredge-history-downloader&category=integration)
 [![Validate](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/actions/workflows/validate.yml/badge.svg)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/nicola-spreafico/home-assistant-solaredge-history-downloader?include_prereleases)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/releases)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/nicola-spreafico/home-assistant-solaredge-history-downloader)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/commits)
@@ -8,79 +9,193 @@
 [![License: GPL-3.0](https://img.shields.io/github/license/nicola-spreafico/home-assistant-solaredge-history-downloader)](LICENSE)
 [![Buy Me a Pizza](https://img.shields.io/badge/Buy%20me%20a%20pizza-%F0%9F%8D%95-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/mf3ebnouct)
 
-SolarEdge History Downloader retroactively fills or realigns an existing Home
-Assistant `utility_meter` with production data from the SolarEdge Monitoring
-API. It downloads and validates the complete replacement dataset first, then
-replaces the target entity's raw states, short-term statistics, and long-term
-statistics in one recorder transaction.
+## Why this integration exists
 
-The integration does not create a sensor and does not store SolarEdge
-credentials in its configuration. It exposes the action
-`solaredge_history_downloader.update_history`.
+Do you have a SolarEdge installation that has been producing energy for years,
+but you configured the Home Assistant `utility_meter` only recently? Your
+energy dashboard then starts from zero and has no historical production.
 
-## Safety
+Does your utility meter contain gaps, incorrect values, or a broken history
+after a configuration change? Do you want to rebuild it from the production
+data that SolarEdge still has available?
 
-This integration deliberately rewrites recorder data. Before every run:
+SolarEdge History Downloader was created for these cases. It downloads
+historical production data from the SolarEdge Monitoring API and can rebuild an
+existing Home Assistant `utility_meter` from that data. It does not create a
+new sensor and it does not replace the SolarEdge integration.
 
-1. create and verify a full Home Assistant backup
-2. test with a non-critical utility meter
-3. confirm that the SolarEdge site and selected granularity are correct
+## Safety first
 
-Deletion starts only after the target, credentials, site, time range, units,
-and complete in-memory download have passed validation. Raw states and
-statistics are replaced in one transaction; a database failure rolls the
-transaction back. The required confirmation value is exactly `REPLACE`.
+`update_history` permanently rewrites recorder data. Use it as a maintenance
+tool, not as a routine automation.
+
+Before every replacement:
+
+1. Create and verify a full Home Assistant backup.
+2. Test the process with a non-critical utility meter first.
+3. Confirm the SolarEdge site, target entity, granularity, and expected period.
+4. Run `inspect_history` before `update_history` when you are unsure what data
+   SolarEdge can provide.
+
+The integration validates the target, credentials, site, meter settings, and
+complete downloaded dataset before deleting anything. Raw states and recorder
+statistics are replaced in one database transaction. If that transaction
+fails, it is rolled back. The destructive action also requires the exact
+confirmation value `REPLACE`.
+
+The integration does not log or return the API key. However, Home Assistant
+automation and script traces can retain action data. For this reason, run
+destructive maintenance actions manually, or disable and delete their traces
+when an API key must not remain in trace storage.
 
 ## Requirements
 
-- Home Assistant 2025.12.0 or newer
-- Recorder enabled and the target entity included by its filter
-- A loaded standard Home Assistant `utility_meter` sensor
-- A SolarEdge Monitoring API key with access to the requested site
+- Home Assistant 2025.12.0 or newer.
+- HACS, or a manual installation of the custom component.
+- Recorder enabled, with the target entity included by its recorder filter.
+- An existing standard Home Assistant `utility_meter` sensor.
+- A SolarEdge Monitoring API key with access to the requested site.
+- The SolarEdge site ID used by the API.
 
-Tariff meters and custom cron reset schedules are rejected because SolarEdge
-production points do not contain enough information to reconstruct those
-periods safely.
+The integration currently requires `solaredge==1.1.1`. Home Assistant installs
+this Python dependency when it loads the integration.
+
+Tariff meters and custom cron reset schedules are not supported because their
+period boundaries cannot be reconstructed reliably from SolarEdge production
+points alone.
 
 ## Installation
 
-[![Install with HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nicola-spreafico&repository=home-assistant-solaredge-history-downloader&category=integration)
-
 ### HACS
 
-1. Open HACS.
-2. Add this repository as a custom repository with category **Integration**.
-3. Install **SolarEdge History Downloader**.
-4. Restart Home Assistant.
+Use the **Install with HACS** button above, or:
 
-### Manual
+1. Open HACS.
+2. Add this repository as a custom repository.
+3. Select **Integration** as the repository category.
+4. Install **SolarEdge History Downloader**.
+5. Restart Home Assistant.
+
+### Manual installation
 
 Copy `custom_components/solaredge_history_downloader` into the Home Assistant
-`custom_components` directory and restart Home Assistant.
+`custom_components` directory, then restart Home Assistant.
 
-### Enable the integration
+### Configure the API key
 
-First, add the SolarEdge Monitoring API key to `secrets.yaml`:
+First add the SolarEdge Monitoring API key to Home Assistant's `secrets.yaml`:
 
 ```yaml
 solaredge_api_key: YOUR_SOLAREDGE_API_KEY
 ```
 
-Then add the following in `configuration.yaml` and restart. Select the site
-explicitly on every action call:
+Then add this top-level configuration to `configuration.yaml` and restart:
 
 ```yaml
 solaredge_history_downloader:
   api_key: !secret solaredge_api_key
 ```
 
-You may instead provide `api_key` on an action call to override the YAML
-default. `site_id` is always required on the action, so a single API key can
-access multiple SolarEdge sites.
+The API key can also be supplied directly in an action call. An action-level
+key overrides the YAML value. The `site_id` is always supplied per action, so
+one API key can be used with multiple SolarEdge sites.
 
-## Action
+After the restart, the actions are available under **Developer tools > Actions**.
 
-The action is available under **Developer tools > Actions** after restart.
+## How to use it
+
+There are two actions. Start with Action 1 when you need to understand what
+SolarEdge can provide; use Action 2 only after reviewing the result and
+creating a backup.
+
+## Action 1: inspect the available history
+
+### What it does
+
+`solaredge_history_downloader.inspect_history` downloads SolarEdge data from a
+requested start date and reports the data period and points that were actually
+returned. It is completely read-only: it does not change utility-meter
+states, recorder history, or recorder statistics.
+
+This is the recommended first step when you need to answer questions such as:
+
+- When does SolarEdge's data period really begin for this site?
+- Does SolarEdge have data for the date I want to restore?
+- How many points will be downloaded at the selected granularity?
+
+### How to use it
+
+Open **Developer tools > Actions**, select
+`solaredge_history_downloader.inspect_history`, fill in the fields, and run
+the action. The equivalent YAML is:
+
+```yaml
+action: solaredge_history_downloader.inspect_history
+data:
+  site_id: 12345678
+  start_date: "2021-01-01"
+  granularity: monthly
+```
+
+### Parameters
+
+| Parameter | Required | What it does |
+| --- | --- | --- |
+| `api_key` | No | Uses this API key instead of the key configured in YAML. |
+| `site_id` | Yes | Identifies the SolarEdge site to inspect. It must be accessible by the API key. |
+| `start_date` | Yes | Earliest date to request. SolarEdge may still return a later effective range if older data is unavailable. |
+| `granularity` | Yes | Selects `hourly`, `daily`, `monthly`, `annual`, or `lifetime` aggregation. |
+
+### Successful output
+
+The action returns a response like this:
+
+```yaml
+status: success
+site_id: 123456
+site_name: Home
+site_timezone: Europe/Rome
+granularity: monthly
+requested_start: "2021-01-01"
+data_period_start: "2025-01-07"
+data_period_end: "2026-07-14"
+source_start: "2025-01-01"
+source_end: "2026-07-14"
+api_requests: 19
+downloaded_points: 19
+```
+
+`data_period_start` and `data_period_end` describe the period reported by the
+SolarEdge site metadata. `source_start` and `source_end` describe the points
+that were actually returned after the requested date and aggregation were
+applied.
+
+## Action 2: rebuild utility-meter history
+
+### What it does
+
+`solaredge_history_downloader.update_history` downloads and validates the
+SolarEdge production history, reconstructs the selected utility-meter cycle,
+and permanently replaces the target entity's:
+
+- raw state history;
+- short-term statistics;
+- long-term statistics.
+
+After the database replacement, the integration calibrates the live utility
+meter to the latest reconstructed cycle value. This lets the meter continue
+from the repaired history instead of jumping back to an unrelated value.
+
+### How to use it
+
+1. Run `inspect_history` and review the returned period and point count.
+2. Create and verify a full Home Assistant backup.
+3. Open **Developer tools > Actions**.
+4. Select `solaredge_history_downloader.update_history`.
+5. Fill in the parameters, type `REPLACE` in the confirmation field, and run
+   the action manually.
+
+Equivalent YAML:
 
 ```yaml
 action: solaredge_history_downloader.update_history
@@ -91,83 +206,19 @@ data:
   confirm_replacement: REPLACE
 ```
 
-The integration never logs or returns `api_key`, and does not persist it in its
-own configuration. Home Assistant automation and script traces can retain
-service-call data, so run this destructive maintenance action manually or
-disable/delete its trace when the key must not remain in Home Assistant trace
-storage.
-
-### Inspect history
-
-Use `solaredge_history_downloader.inspect_history` to inspect the SolarEdge
-data period and the points available from a requested start date. This action
-is read-only: it does not modify utility-meter states, recorder history, or
-statistics.
-
-```yaml
-action: solaredge_history_downloader.inspect_history
-data:
-  site_id: 12345678
-  start_date: "2021-01-01"
-  granularity: monthly
-```
-
-The action returns the requested date, the site's available data period, the
-actual returned source range, the number of API requests, and the number of
-downloaded points. It uses the API key from the integration configuration;
-`api_key` can be provided in the action data to override it.
-
 ### Parameters
 
-| Parameter | Required | Description |
+| Parameter | Required | What it does |
 | --- | --- | --- |
-| `api_key` | No | SolarEdge Monitoring API key. Overrides the YAML default. |
-| `site_id` | Yes | Numeric site ID that must be accessible by the API key. |
-| `target_entity` | Yes | Existing standard `utility_meter` sensor to replace. |
-| `granularity` | Yes | `hourly`, `daily`, `monthly`, `annual`, or `lifetime`. |
-| `confirm_replacement` | Yes | Must be exactly `REPLACE`. |
+| `api_key` | No | Uses this API key instead of the key configured in YAML. |
+| `site_id` | Yes | Identifies the SolarEdge site used as the source of production data. |
+| `target_entity` | Yes | Selects the existing standard `utility_meter` sensor whose history will be replaced. |
+| `granularity` | Yes | Selects `hourly`, `daily`, `monthly`, `annual`, or `lifetime` source aggregation. |
+| `confirm_replacement` | Yes | Must be exactly `REPLACE`; prevents accidental destructive calls. |
 
-### Granularity
+### Successful output
 
-| Value | Result | SolarEdge requests |
-| --- | --- | --- |
-| `hourly` | One point per available hour | Windows of at most 31 days |
-| `daily` | One point per available day | Windows of at most 365 days |
-| `monthly` | One point per calendar month | Complete site period |
-| `annual` | One point per calendar year | Complete site period |
-| `lifetime` | One point for the complete site period | Annual data aggregated to one point |
-
-The requested data must be at least as fine as the target meter cycle. For
-example, hourly data can rebuild a monthly meter and preserves every hourly
-point, while annual data cannot truthfully rebuild a monthly meter and is
-rejected. Hourly is the finest production-history resolution exposed by this
-action. A quarter-hourly utility meter therefore cannot be reconstructed and
-is rejected.
-
-Offsets are supported only when source bucket boundaries can represent them
-without splitting SolarEdge values. Coarse monthly, annual, and lifetime
-buckets therefore require a zero meter offset.
-
-## What Happens
-
-1. Validate the target entity, recorder status, cycle, offset, and unit.
-2. Validate the API key and site ID through SolarEdge site details.
-3. Read the site's real data period and timezone.
-4. Download all points, chunking requests where SolarEdge requires it.
-5. Convert SolarEdge units to the target unit, sort, deduplicate, and validate.
-6. Reconstruct `state` as the cumulative value inside each utility-meter cycle.
-7. Reconstruct `sum` as a monotonic lifetime total for Energy Dashboard use.
-8. Atomically replace raw states and both statistics tables.
-9. Calibrate the live utility meter to the latest reconstructed cycle value.
-
-Long-term statistics are timestamped at the last hour of each represented
-interval. Existing short-term statistics are removed but are not fabricated
-from hourly-or-coarser source data; Home Assistant resumes creating current
-short-term statistics normally after the action.
-
-## Response
-
-When response data is requested, the action returns a summary such as:
+The action returns a response like this:
 
 ```yaml
 status: success
@@ -188,26 +239,94 @@ imported_long_term_statistics: 1695
 calibrated_value: "284.42"
 ```
 
-## API Limits and Failures
+The counts describe the recorder rows removed and inserted by the replacement.
+Short-term statistics are removed but are not fabricated from hourly-or-coarser
+source data; Home Assistant resumes creating current short-term statistics
+normally after the action.
 
-SolarEdge documents a limit of 300 requests per API key and site per day and a
-maximum of three concurrent requests. This integration downloads sequentially.
-HTTP authentication, access, not-found, and rate-limit errors are translated
-into Home Assistant action errors before recorder data is touched.
+## Supported granularity and meter rules
 
-If live calibration fails after a successful database replacement, Home
-Assistant reports the calibration error. The historical transaction has
-already completed in that case; rerun the standard `utility_meter.calibrate`
-action with the latest reconstructed value or restore the backup.
+| Value | Result | SolarEdge request strategy |
+| --- | --- | --- |
+| `hourly` | One point per available hour | Windows of at most 31 days |
+| `daily` | One point per available day | Windows of at most 365 days |
+| `monthly` | One point per calendar month | Complete site period |
+| `annual` | One point per calendar year | Complete site period |
+| `lifetime` | One point for the complete site period | Annual data aggregated to one point |
+
+The requested source must be at least as fine as the target meter cycle. For
+example, hourly data can rebuild a monthly meter, while annual data cannot
+truthfully rebuild a monthly meter and is rejected. Hourly is the finest
+resolution exposed by this integration, so a quarter-hourly utility meter
+cannot be reconstructed.
+
+Offsets are supported only when source bucket boundaries can represent them
+without splitting SolarEdge values. Monthly, annual, and lifetime operations
+therefore require a zero meter offset.
+
+## Possible errors
+
+The integration validates inputs before touching recorder data. Common errors
+include:
+
+| Error | Meaning |
+| --- | --- |
+| `SolarEdge API key is required by the action or integration YAML` | No API key was supplied in the action or integration configuration. |
+| `SolarEdge rejected the API key or the key cannot access the site` | The key is invalid, expired, or not authorized for the site. |
+| `SolarEdge site ... does not exist or is not accessible` | The site ID is incorrect or unavailable to the key. |
+| `SolarEdge API request limit reached; retry later` | The API returned HTTP 429. Wait before retrying. |
+| `Unable to reach the SolarEdge API` | Home Assistant could not connect to SolarEdge. |
+| `SolarEdge returned no production values...` | The selected site/date range returned no usable data. |
+| `Home Assistant recorder is not ready` | Wait until Recorder has finished starting. |
+| `Entity ... is excluded from recorder` | Add the target entity to the Recorder include filter. |
+| `A history update is already running...` | Another replacement for the same meter is still running. |
+| `Recorder history replacement failed; the database transaction was rolled back` | The database replacement failed; the transaction was rolled back. |
+| Granularity or offset validation errors | The selected source resolution cannot reconstruct the target meter safely. |
+
+If live calibration fails after a successful database replacement, the action
+reports the calibration error while the historical transaction remains
+completed. In that case, rerun the standard `utility_meter.calibrate` action
+with the latest reconstructed value, or restore the backup.
+
+## SolarEdge API limits
+
+SolarEdge documents these limits for the Monitoring API:
+
+- 300 requests per API key and site per day.
+- A maximum of three concurrent requests.
+
+This integration downloads sequentially and never intentionally exceeds three
+concurrent requests. Long hourly or daily ranges may require multiple API
+requests, so check `api_requests` in the inspection response before starting a
+large replacement. The integration does not bypass SolarEdge's account or API
+limits.
+
+## How the replacement works
+
+For `update_history`, the integration:
+
+1. Validates the target utility meter, Recorder, cycle, offset, and unit.
+2. Validates the API key and site through SolarEdge site details.
+3. Reads the site's actual data period and timezone.
+4. Downloads all requested points and chunks requests where required.
+5. Converts units, sorts points, removes duplicates, and validates the data.
+6. Reconstructs utility-meter states and monotonic long-term statistics.
+7. Replaces raw states and recorder statistics atomically.
+8. Calibrates the live utility meter to the latest reconstructed value.
 
 ## Development
 
 ```bash
-python -m pip install "homeassistant==2025.12.0" "pycares<5" pytest pytest-asyncio
-python -m pytest -q
+uv run --with 'homeassistant==2025.12.0' --with 'pycares<5' --with 'solaredge==1.1.1' pytest
+uv run ruff check .
 ```
 
 Hassfest and HACS validation run in GitHub Actions. The recorder adapter uses
 Home Assistant recorder internals because Home Assistant has no public API for
-inserting historical raw state rows; the minimum supported Home Assistant
+inserting historical raw state rows. The minimum supported Home Assistant
 version is intentionally strict for that reason.
+
+## License
+
+This project is licensed under the GNU General Public License v3.0. See
+[LICENSE](LICENSE).
