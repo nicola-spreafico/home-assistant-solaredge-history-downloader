@@ -317,7 +317,7 @@ def _api_time_unit(
     granularity: DownloadGranularity,
 ) -> tuple[str, int | None]:
     if granularity is DownloadGranularity.HOURLY:
-        return "HOUR", 31
+        return "HOUR", 30
     if granularity is DownloadGranularity.DAILY:
         return "DAY", 365
     if granularity is DownloadGranularity.MONTHLY:
