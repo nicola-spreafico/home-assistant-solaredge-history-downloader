@@ -85,6 +85,10 @@ Copy `custom_components/solaredge_history_downloader` into the Home Assistant
 
 ### Configure the API key
 
+Retrieve the key from the **SolarEdge Monitoring portal** under **Admin > API
+Access**. You need SolarEdge account permissions to view or create an API key,
+and the key must have access to the site identified by `site_id`.
+
 First add the SolarEdge Monitoring API key to Home Assistant's `secrets.yaml`:
 
 ```yaml
