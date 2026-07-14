@@ -289,7 +289,7 @@ include:
 | `Entity ... is excluded from recorder` | Add the target entity to the Recorder include filter. |
 | `A history update is already running...` | Another replacement for the same meter is still running. |
 | `Recorder history replacement failed; the database transaction was rolled back` | The database replacement failed; the transaction was rolled back. |
-| Granularity or offset validation errors | The selected source resolution cannot reconstruct the target meter safely. |
+| `Granularity or offset validation errors` | The selected source resolution cannot reconstruct the target meter safely. |
 
 If live calibration fails after a successful database replacement, the action
 reports the calibration error while the historical transaction remains
