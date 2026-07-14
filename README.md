@@ -1,7 +1,6 @@
 # SolarEdge History Downloader
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
-[![Install with HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nicola-spreafico&repository=home-assistant-solaredge-history-downloader&category=integration)
 [![Validate](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/actions/workflows/validate.yml/badge.svg)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/nicola-spreafico/home-assistant-solaredge-history-downloader?include_prereleases)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/releases)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/nicola-spreafico/home-assistant-solaredge-history-downloader)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/commits)
@@ -38,13 +37,14 @@ transaction back. The required confirmation value is exactly `REPLACE`.
 - Recorder enabled and the target entity included by its filter
 - A loaded standard Home Assistant `utility_meter` sensor
 - A SolarEdge Monitoring API key with access to the requested site
-- Target unit `Wh`, `kWh`, or `MWh`
 
 Tariff meters and custom cron reset schedules are rejected because SolarEdge
 production points do not contain enough information to reconstruct those
 periods safely.
 
 ## Installation
+
+[![Install with HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nicola-spreafico&repository=home-assistant-solaredge-history-downloader&category=integration)
 
 ### HACS
 
