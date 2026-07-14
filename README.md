@@ -60,8 +60,14 @@ Copy `custom_components/solaredge_history_downloader` into the Home Assistant
 
 ### Enable the integration
 
-Add the following top-level configuration and restart. The API key remains in
-`secrets.yaml`; select the site explicitly on every action call:
+First, add the SolarEdge Monitoring API key to `secrets.yaml`:
+
+```yaml
+solaredge_api_key: YOUR_SOLAREDGE_API_KEY
+```
+
+Then add the following top-level configuration and restart. Select the site
+explicitly on every action call:
 
 ```yaml
 solaredge_history_downloader:
