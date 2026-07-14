@@ -10,13 +10,14 @@
 
 ## Why this integration exists
 
-Do you have a SolarEdge installation that has been producing energy for years,
-but you configured the Home Assistant `utility_meter` only recently? Your
-energy dashboard then starts from zero and has no historical production.
+> *"Do you have a SolarEdge installation that has been producing energy for
+> years, but you configured the Home Assistant `utility_meter` only recently?
+> Your energy dashboard then starts from zero and has no historical
+> production."*
 
-Does your utility meter contain gaps, incorrect values, or a broken history
-after a configuration change? Do you want to rebuild it from the production
-data that SolarEdge still has available?
+> *"Does your utility meter contain gaps, incorrect values, or a broken history
+> after a configuration change? Do you want to rebuild it from the production
+> data that SolarEdge still has available?"*
 
 SolarEdge History Downloader was created for these cases. It downloads
 historical production data from the SolarEdge Monitoring API and can rebuild an
