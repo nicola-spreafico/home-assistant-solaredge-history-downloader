@@ -5,6 +5,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/nicola-spreafico/home-assistant-solaredge-history-downloader?include_prereleases)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/releases)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/nicola-spreafico/home-assistant-solaredge-history-downloader)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/commits)
 [![GitHub Issues](https://img.shields.io/github/issues/nicola-spreafico/home-assistant-solaredge-history-downloader)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/issues)
+[![License: GPL-3.0](https://img.shields.io/github/license/nicola-spreafico/home-assistant-solaredge-history-downloader)](LICENSE)
 [![Buy Me a Pizza](https://img.shields.io/badge/Buy%20me%20a%20pizza-%F0%9F%8D%95-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/mf3ebnouct)
 
 SolarEdge History Downloader retroactively fills or realigns an existing Home
