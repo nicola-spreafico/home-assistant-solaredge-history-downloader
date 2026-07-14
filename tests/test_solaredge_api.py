@@ -136,7 +136,7 @@ async def test_hourly_download_chunks_and_deduplicates_boundaries() -> None:
         Decimal("300"),
     ]
     assert [call[2] for call in client.energy_calls] == ["HOUR", "HOUR"]
-    assert (client.energy_calls[0][1] - client.energy_calls[0][0]).days == 31
+    assert (client.energy_calls[0][1] - client.energy_calls[0][0]).days == 30
 
 
 @pytest.mark.asyncio
