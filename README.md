@@ -322,19 +322,3 @@ For `update_history`, the integration:
 7. Replaces raw states and recorder statistics atomically.
 8. Calibrates the live utility meter to the latest reconstructed value.
 
-## Development
-
-```bash
-uv run --with 'homeassistant==2025.12.0' --with 'pycares<5' --with 'solaredge==1.1.1' pytest
-uv run ruff check .
-```
-
-Hassfest and HACS validation run in GitHub Actions. The recorder adapter uses
-Home Assistant recorder internals because Home Assistant has no public API for
-inserting historical raw state rows. The minimum supported Home Assistant
-version is intentionally strict for that reason.
-
-## License
-
-This project is licensed under the GNU General Public License v3.0. See
-[LICENSE](LICENSE).
