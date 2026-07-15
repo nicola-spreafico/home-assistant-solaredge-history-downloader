@@ -32,7 +32,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.json import JSON_DUMP
 from sqlalchemy.orm import Session
 
-from .history import HistoryPoint, statistics_start
+from .history import HistoryPoint, StatRow
 
 if TYPE_CHECKING:
     from homeassistant.components.recorder.core import Recorder
@@ -65,6 +65,7 @@ class ReplaceHistoryTask(RecorderTask):
     unit: str
     attributes: Mapping[str, Any]
     points: tuple[HistoryPoint, ...]
+    stat_rows: tuple[StatRow, ...]
     on_done: CompletionCallback
 
     def run(self, instance: Recorder) -> None:
@@ -102,7 +103,11 @@ class ReplaceHistoryTask(RecorderTask):
                 states_metadata_id = states_metadata.metadata_id
                 created_states_metadata = True
 
-            attributes_id = _get_or_create_attributes_id(session, self.attributes)
+            attributes_id = (
+                _get_or_create_attributes_id(session, self.attributes)
+                if self.points
+                else None
+            )
             deleted_states = (
                 session.query(States)
                 .filter(States.metadata_id == states_metadata_id)
@@ -173,13 +178,13 @@ class ReplaceHistoryTask(RecorderTask):
                 Statistics.from_stats(
                     statistic_metadata_id,
                     StatisticData(
-                        start=statistics_start(point),
-                        state=float(point.state),
-                        sum=float(point.sum),
+                        start=row.start,
+                        state=float(row.state),
+                        sum=float(row.sum),
                     ),
                     now_timestamp,
                 )
-                for point in self.points
+                for row in self.stat_rows
             ]
             _validate_unique_statistics_starts(statistics)
             session.add_all(raw_states)
@@ -207,6 +212,7 @@ async def async_replace_history(
     unit: str,
     attributes: Mapping[str, Any],
     points: list[HistoryPoint],
+    stat_rows: list[StatRow],
 ) -> ReplacementResult:
     """Queue an atomic recorder replacement and await its completion."""
     future: asyncio.Future[ReplacementResult] = hass.loop.create_future()
@@ -227,6 +233,7 @@ async def async_replace_history(
             unit=unit,
             attributes=attributes,
             points=tuple(points),
+            stat_rows=tuple(stat_rows),
             on_done=on_done,
         )
     )

@@ -52,8 +52,14 @@ when an API key must not remain in trace storage.
 
 - Home Assistant 2025.12.0 or newer.
 - HACS, or a manual installation of the custom component.
-- Recorder enabled, with the target entity included by its recorder filter.
-- An existing standard Home Assistant `utility_meter` sensor.
+- Recorder enabled. If the target sensor is excluded by the recorder filter,
+  raw states are skipped and only long-term statistics are replaced.
+- A target energy sensor (Wh, kWh, or MWh). Utility meters are recognized
+  generically — the standard `utility_meter` integration and any custom
+  integration whose sensor extends it (exposing the same cycle, tariff, and
+  cron attributes) — and their history is reconstructed per reset cycle. Any
+  other sensor is accepted with `target_type: sensor` and receives a
+  cumulative lifetime total.
 - A SolarEdge Monitoring API key with access to the requested site.
 - The SolarEdge site ID used by the API.
 
@@ -220,6 +226,7 @@ action: solaredge_history_downloader.update_history
 data:
   site_id: 12345678
   target_entity: sensor.my_solaredge_utility_meter
+  target_type: meter
   granularity: monthly
   confirm_replacement: REPLACE
 ```
@@ -230,7 +237,8 @@ data:
 | --- | --- | --- |
 | `api_key` | No | Uses this API key instead of the key configured in YAML. |
 | `site_id` | Yes | Identifies the SolarEdge site used as the source of production data. |
-| `target_entity` | Yes | Selects the existing standard `utility_meter` sensor whose history will be replaced. |
+| `target_entity` | Yes | Selects the energy sensor whose history will be replaced. |
+| `target_type` | Yes | Declares the target as `meter` or `sensor`. A `meter` (from any integration) is reconstructed per reset cycle and calibrated afterwards; a `sensor` gets a cumulative lifetime total. The action is blocked when the declaration does not match the loaded entity. |
 | `granularity` | Yes | Selects `hourly`, `daily`, `monthly`, `annual`, or `lifetime` source aggregation. |
 | `confirm_replacement` | Yes | Must be exactly `REPLACE`; prevents accidental destructive calls. |
 
@@ -329,6 +337,10 @@ For `update_history`, the integration:
 4. Downloads all requested points and chunks requests where required.
 5. Converts units, sorts points, removes duplicates, and validates the data.
 6. Reconstructs utility-meter states and monotonic long-term statistics.
-7. Replaces raw states and recorder statistics atomically.
-8. Calibrates the live utility meter to the latest reconstructed value.
+7. Replaces raw states and recorder statistics atomically. Recorder-excluded
+   targets get no raw states: stale states are deleted and only statistics
+   rows are written.
+8. Calibrates the live sensor to the latest reconstructed value when its
+   integration provides a `calibrate` action; otherwise this step is skipped
+   and `calibrated_value` is null in the response.
 

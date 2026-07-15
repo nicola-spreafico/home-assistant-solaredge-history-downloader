@@ -63,6 +63,15 @@ class HistoryPoint:
     sum: Decimal
 
 
+@dataclass(frozen=True, slots=True)
+class StatRow:
+    """One long-term-statistics row ready for the recorder."""
+
+    start: datetime
+    state: Decimal
+    sum: Decimal
+
+
 def aggregate_intervals(
     intervals: list[EnergyInterval],
     granularity: DownloadGranularity,
@@ -167,6 +176,14 @@ def statistics_start(point: HistoryPoint) -> datetime:
         .astimezone(UTC)
         .replace(minute=0, second=0, microsecond=0)
     )
+
+
+def standard_statistic_rows(points: list[HistoryPoint]) -> list[StatRow]:
+    """Build one statistics row per reconstructed point for a standard meter."""
+    return [
+        StatRow(start=statistics_start(point), state=point.state, sum=point.sum)
+        for point in points
+    ]
 
 
 def validate_granularity_for_meter(

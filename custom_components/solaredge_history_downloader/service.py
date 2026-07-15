@@ -14,9 +14,6 @@ from homeassistant.components.utility_meter.const import (
     ATTR_VALUE,
     SERVICE_CALIBRATE_METER,
 )
-from homeassistant.components.utility_meter.const import (
-    DOMAIN as UTILITY_METER_DOMAIN,
-)
 from homeassistant.const import (
     ATTR_DEVICE_CLASS,
     ATTR_ENTITY_ID,
@@ -36,14 +33,18 @@ from .const import (
     CONF_SITE_ID,
     CONF_START_DATE,
     CONF_TARGET_ENTITY,
+    CONF_TARGET_TYPE,
     CONFIRM_REPLACEMENT,
     DATA_CONFIG,
     DATA_LOCKS,
     DOMAIN,
+    TARGET_TYPE_METER,
+    TARGET_TYPE_SENSOR,
 )
 from .history import (
     DownloadGranularity,
     reconstruct_history,
+    standard_statistic_rows,
     validate_granularity_for_meter,
 )
 from .meter import TargetMeter, resolve_target_meter
@@ -57,6 +58,7 @@ SERVICE_SCHEMA = vol.Schema(
         vol.Optional(CONF_API_KEY): vol.All(cv.string, vol.Length(min=1)),
         vol.Required(CONF_SITE_ID): vol.All(vol.Coerce(int), vol.Range(min=1)),
         vol.Required(CONF_TARGET_ENTITY): cv.entity_id,
+        vol.Required(CONF_TARGET_TYPE): vol.In([TARGET_TYPE_METER, TARGET_TYPE_SENSOR]),
         vol.Required(CONF_GRANULARITY): vol.In(
             [granularity.value for granularity in DownloadGranularity]
         ),
@@ -89,8 +91,12 @@ async def async_update_history(
         )
 
     async with lock:
-        target = resolve_target_meter(hass, entity_id)
-        _validate_recorder_target(hass, target)
+        target = resolve_target_meter(
+            hass,
+            entity_id,
+            declared_meter=call.data[CONF_TARGET_TYPE] == TARGET_TYPE_METER,
+        )
+        write_states = _validate_recorder_target(hass, target)
         granularity = DownloadGranularity(call.data[CONF_GRANULARITY])
         try:
             validate_granularity_for_meter(granularity, target.cycle, target.offset)
@@ -121,26 +127,31 @@ async def async_update_history(
                 name=target.name,
                 unit=target.unit,
                 attributes=_recorded_attributes(dict(state.attributes)),
-                points=points,
+                points=points if write_states else [],
+                stat_rows=standard_statistic_rows(points),
             )
         except Exception as err:
             raise HomeAssistantError(
                 "Recorder history replacement failed; the database transaction "
                 "was rolled back"
             ) from err
-        await hass.services.async_call(
-            UTILITY_METER_DOMAIN,
-            SERVICE_CALIBRATE_METER,
-            {
-                ATTR_ENTITY_ID: entity_id,
-                ATTR_VALUE: format(points[-1].state, "f"),
-            },
-            blocking=True,
-        )
+        calibrated_value: str | None = None
+        if target.calibrate_domain is not None:
+            calibrated_value = format(points[-1].state, "f")
+            await hass.services.async_call(
+                target.calibrate_domain,
+                SERVICE_CALIBRATE_METER,
+                {
+                    ATTR_ENTITY_ID: entity_id,
+                    ATTR_VALUE: calibrated_value,
+                },
+                blocking=True,
+            )
 
     return {
         "status": "success",
         "target_entity": entity_id,
+        "target_type": call.data[CONF_TARGET_TYPE],
         "site_id": download.site.site_id,
         "site_name": download.site.name,
         "site_timezone": str(download.site.timezone),
@@ -154,7 +165,7 @@ async def async_update_history(
         "deleted_long_term_statistics": replacement.deleted_long_term_statistics,
         "imported_states": replacement.imported_states,
         "imported_long_term_statistics": (replacement.imported_long_term_statistics),
-        "calibrated_value": format(points[-1].state, "f"),
+        "calibrated_value": calibrated_value,
     }
 
 
@@ -233,16 +244,16 @@ async def _async_download(
         raise HomeAssistantError("Unexpected SolarEdge download failure") from err
 
 
-def _validate_recorder_target(hass: HomeAssistant, target: TargetMeter) -> None:
+def _validate_recorder_target(hass: HomeAssistant, target: TargetMeter) -> bool:
+    """Check recorder readiness; return whether raw states should be written.
+
+    Recorder-excluded targets (for example meters that keep only long-term
+    statistics) get statistics replaced without importing raw states.
+    """
     recorder = get_instance(hass)
     if not recorder.is_running or not recorder.async_db_ready.done():
         raise ServiceValidationError("Home Assistant recorder is not ready")
-    if recorder.entity_filter is not None and not recorder.entity_filter(
-        target.entity_id
-    ):
-        raise ServiceValidationError(
-            f"Entity {target.entity_id} is excluded from recorder"
-        )
+    return recorder.entity_filter is None or recorder.entity_filter(target.entity_id)
 
 
 def _recorded_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
