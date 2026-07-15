@@ -7,9 +7,9 @@ import pytest
 
 from custom_components.solaredge_history_downloader.history import DownloadGranularity
 from custom_components.solaredge_history_downloader.solaredge_api import (
-    LegacyMonitoringClient,
     SolarEdgeDataError,
     SolarEdgeHistoryDownloader,
+    SyncMonitoringClient,
 )
 
 
@@ -60,8 +60,8 @@ class FakeClient:
         return self.responses.pop(0)
 
 
-class FakeLegacyClient:
-    """Synchronous solaredge 0.0.4-compatible client."""
+class FakeSyncClient:
+    """Synchronous solaredge-compatible client."""
 
     def __init__(self, api_key: str) -> None:
         self.api_key = api_key
@@ -83,19 +83,19 @@ class FakeLegacyClient:
 
 
 @pytest.mark.asyncio
-async def test_legacy_client_adapts_sync_api_without_blocking_callers() -> None:
-    legacy_client = LegacyMonitoringClient("key", client_factory=FakeLegacyClient)
+async def test_sync_client_adapts_without_blocking_callers() -> None:
+    sync_client = SyncMonitoringClient("key", client_factory=FakeSyncClient)
 
-    details = await legacy_client.get_site_details(123)
-    period = await legacy_client.get_site_data([123])
-    energy = await legacy_client.get_energy(
+    details = await sync_client.get_site_details(123)
+    period = await sync_client.get_site_data([123])
+    energy = await sync_client.get_energy(
         [123], datetime(2024, 1, 1), datetime(2024, 1, 31), "MONTH"
     )
 
     assert details == {"details": {"id": 123}}
     assert period["dataPeriod"]["startDate"] == "2024-01-01"
     assert energy == {"energy": {"values": []}}
-    assert legacy_client._client.calls == [
+    assert sync_client._client.calls == [
         ("details", (123,)),
         ("data_period", (123,)),
         ("energy", (123, "2024-01-01", "2024-01-31", "MONTH")),
@@ -110,7 +110,7 @@ async def test_hourly_download_chunks_and_deduplicates_boundaries() -> None:
                 "unit": "Wh",
                 "values": [
                     {"date": "2024-01-01 00:00:00", "value": 100},
-                    {"date": "2024-02-01 00:00:00", "value": 200},
+                    {"date": "2024-01-14 00:00:00", "value": 200},
                 ],
             }
         },
@@ -118,7 +118,25 @@ async def test_hourly_download_chunks_and_deduplicates_boundaries() -> None:
             "energy": {
                 "unit": "Wh",
                 "values": [
-                    {"date": "2024-02-01 00:00:00", "value": 200},
+                    {"date": "2024-01-14 00:00:00", "value": 200},
+                    {"date": "2024-01-27 00:00:00", "value": 300},
+                ],
+            }
+        },
+        {
+            "energy": {
+                "unit": "Wh",
+                "values": [
+                    {"date": "2024-01-27 00:00:00", "value": 300},
+                    {"date": "2024-02-09 00:00:00", "value": 400},
+                ],
+            }
+        },
+        {
+            "energy": {
+                "unit": "Wh",
+                "values": [
+                    {"date": "2024-02-09 00:00:00", "value": 400},
                     {"date": "2024-02-15 00:00:00", "value": 300},
                 ],
             }
@@ -129,14 +147,24 @@ async def test_hourly_download_chunks_and_deduplicates_boundaries() -> None:
 
     result = await downloader.async_download(DownloadGranularity.HOURLY)
 
-    assert result.requests == 2
+    assert result.requests == 4
     assert [point.watt_hours for point in result.intervals] == [
         Decimal("100"),
         Decimal("200"),
         Decimal("300"),
+        Decimal("400"),
+        Decimal("300"),
     ]
-    assert [call[2] for call in client.energy_calls] == ["HOUR", "HOUR"]
-    assert (client.energy_calls[0][1] - client.energy_calls[0][0]).days == 30
+    assert [call[2] for call in client.energy_calls] == ["HOUR"] * 4
+    assert [
+        (start.date(), end.date())
+        for start, end, _ in client.energy_calls
+    ] == [
+        (date(2024, 1, 1), date(2024, 1, 14)),
+        (date(2024, 1, 14), date(2024, 1, 27)),
+        (date(2024, 1, 27), date(2024, 2, 9)),
+        (date(2024, 2, 9), date(2024, 2, 15)),
+    ]
 
 
 @pytest.mark.asyncio

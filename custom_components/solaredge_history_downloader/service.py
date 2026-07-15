@@ -220,6 +220,9 @@ async def _async_download(
             message = "SolarEdge API request limit reached; retry later"
         else:
             message = f"SolarEdge API returned HTTP status {status}"
+            detail = " ".join(err.response.text.split())
+            if detail:
+                message = f"{message}: {detail[:500]}"
         raise ServiceValidationError(message) from err
     except RequestError as err:
         raise HomeAssistantError("Unable to reach the SolarEdge API") from err
