@@ -189,8 +189,7 @@ def _default_client_factory() -> ClientFactory:
             from solaredge import MonitoringClient
         except ImportError as sync_err:
             raise SolarEdgeDataError(
-                "Unable to import a supported solaredge client: "
-                f"{sync_err}"
+                f"Unable to import a supported solaredge client: {sync_err}"
             ) from sync_err
         return lambda api_key: SyncMonitoringClient(
             api_key, client_factory=MonitoringClient
