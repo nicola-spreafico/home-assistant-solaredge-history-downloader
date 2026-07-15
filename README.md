@@ -2,6 +2,7 @@
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![Validate](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/actions/workflows/validate.yml/badge.svg)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/actions/workflows/validate.yml)
+[![HACS Validation](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/actions/workflows/hacs.yml/badge.svg)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/actions/workflows/hacs.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/nicola-spreafico/home-assistant-solaredge-history-downloader?include_prereleases)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/releases)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/nicola-spreafico/home-assistant-solaredge-history-downloader)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/commits)
 [![GitHub Issues](https://img.shields.io/github/issues/nicola-spreafico/home-assistant-solaredge-history-downloader)](https://github.com/nicola-spreafico/home-assistant-solaredge-history-downloader/issues)
