@@ -60,6 +60,16 @@ when an API key must not remain in trace storage.
 The integration currently requires `solaredge==1.1.1`. Home Assistant installs
 this Python dependency when it loads the integration.
 
+### Python dependency compatibility
+
+This integration uses `solaredge==1.1.1`, the latest version available when
+this release was published. Home Assistant installs Python requirements in a
+shared environment, so it cannot load integrations that require incompatible
+versions of the same package. Before installing, check the requirements of any
+other SolarEdge custom integration already in use. For example,
+[SolarEdge Forecast](https://github.com/nelbs/solaredge-forecast/blob/main/custom_components/solaredge_forecast/manifest.json#L10)
+requires `solaredge==0.0.4`; installing both integrations can therefore fail.
+
 Tariff meters and custom cron reset schedules are not supported because their
 period boundaries cannot be reconstructed reliably from SolarEdge production
 points alone.
