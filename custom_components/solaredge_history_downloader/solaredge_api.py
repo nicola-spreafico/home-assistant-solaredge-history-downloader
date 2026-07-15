@@ -184,7 +184,7 @@ class SolarEdgeHistoryDownloader:
 def _default_client_factory() -> ClientFactory:
     try:
         from solaredge import AsyncMonitoringClient
-    except ImportError as err:
+    except ImportError:
         try:
             from solaredge import MonitoringClient
         except ImportError as sync_err:
