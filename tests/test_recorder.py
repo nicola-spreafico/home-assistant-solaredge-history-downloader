@@ -23,7 +23,10 @@ from homeassistant.components.recorder.table_managers.statistics_meta import (
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from custom_components.solaredge_history_downloader.history import HistoryPoint
+from custom_components.solaredge_history_downloader.history import (
+    HistoryPoint,
+    standard_statistic_rows,
+)
 from custom_components.solaredge_history_downloader.recorder import (
     ReplaceHistoryTask,
     _statistics_metadata,
@@ -125,6 +128,32 @@ def test_replace_history_commits_states_and_long_term_statistics(
         assert session.query(StatisticsShortTerm).count() == 0
 
 
+def test_replace_history_without_states_only_replaces_statistics(
+    recorder_database: tuple[FakeRecorder, sessionmaker[Session]],
+) -> None:
+    recorder, session_factory = recorder_database
+    points = _points()
+    task = ReplaceHistoryTask(
+        entity_id=ENTITY_ID,
+        name="Solar production monthly",
+        unit="kWh",
+        attributes={"unit_of_measurement": "kWh"},
+        points=(),
+        stat_rows=tuple(standard_statistic_rows(points)),
+        on_done=lambda *_: None,
+    )
+
+    result, _, _ = task._replace(recorder)  # noqa: SLF001
+
+    assert result.deleted_states == 2
+    assert result.imported_states == 0
+    assert result.imported_long_term_statistics == 2
+    with session_factory() as session:
+        assert session.query(States).count() == 0
+        statistics = session.query(Statistics).order_by(Statistics.start_ts).all()
+        assert [statistic.sum for statistic in statistics] == [1, 3]
+
+
 def test_replace_history_rolls_back_all_deletes_on_invalid_statistics(
     recorder_database: tuple[FakeRecorder, sessionmaker[Session]],
 ) -> None:
@@ -173,5 +202,6 @@ def _task(points: list[HistoryPoint]) -> ReplaceHistoryTask:
         unit="kWh",
         attributes={"unit_of_measurement": "kWh"},
         points=tuple(points),
+        stat_rows=tuple(standard_statistic_rows(points)),
         on_done=lambda *_: None,
     )

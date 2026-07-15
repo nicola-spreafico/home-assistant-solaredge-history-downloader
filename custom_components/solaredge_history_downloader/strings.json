@@ -2,7 +2,7 @@
   "services": {
     "update_history": {
       "name": "Update history",
-      "description": "Downloads the complete SolarEdge production history and permanently replaces raw states and statistics for one standard utility meter.",
+      "description": "Downloads the complete SolarEdge production history and permanently replaces raw states and statistics for one energy sensor, typically a utility meter.",
       "fields": {
         "api_key": {
           "name": "API key",
@@ -13,8 +13,12 @@
           "description": "Numeric SolarEdge site identifier accessible by the API key."
         },
         "target_entity": {
-          "name": "Target utility meter",
-          "description": "Utility meter whose raw states and statistics will be replaced."
+          "name": "Target sensor",
+          "description": "Energy sensor whose raw states and statistics will be replaced."
+        },
+        "target_type": {
+          "name": "Target type",
+          "description": "Declares what the target is. A utility meter (from any integration) is reconstructed per reset cycle and calibrated afterwards; a plain sensor receives a cumulative lifetime total. The action is blocked if the declaration does not match the loaded entity."
         },
         "granularity": {
           "name": "Granularity",
