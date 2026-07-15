@@ -58,9 +58,7 @@ SERVICE_SCHEMA = vol.Schema(
         vol.Optional(CONF_API_KEY): vol.All(cv.string, vol.Length(min=1)),
         vol.Required(CONF_SITE_ID): vol.All(vol.Coerce(int), vol.Range(min=1)),
         vol.Required(CONF_TARGET_ENTITY): cv.entity_id,
-        vol.Required(CONF_TARGET_TYPE): vol.In(
-            [TARGET_TYPE_METER, TARGET_TYPE_SENSOR]
-        ),
+        vol.Required(CONF_TARGET_TYPE): vol.In([TARGET_TYPE_METER, TARGET_TYPE_SENSOR]),
         vol.Required(CONF_GRANULARITY): vol.In(
             [granularity.value for granularity in DownloadGranularity]
         ),
