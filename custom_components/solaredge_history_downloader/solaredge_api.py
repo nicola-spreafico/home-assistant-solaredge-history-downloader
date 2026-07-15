@@ -13,6 +13,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .history import DownloadGranularity, EnergyInterval, aggregate_intervals
 
+_HOURLY_MAX_DATE_DELTA_DAYS = 13
+
 
 class SolarEdgeDataError(ValueError):
     """Raised when SolarEdge returns an incomplete or inconsistent payload."""
@@ -37,8 +39,8 @@ class MonitoringClient(Protocol):
 ClientFactory = Callable[..., AbstractAsyncContextManager[MonitoringClient]]
 
 
-class LegacyMonitoringClient:
-    """Adapt the synchronous solaredge 0.0.4 client for async use."""
+class SyncMonitoringClient:
+    """Adapt the synchronous solaredge client for async use."""
 
     def __init__(
         self,
@@ -47,12 +49,12 @@ class LegacyMonitoringClient:
         client_factory: Callable[[str], Any] | None = None,
     ) -> None:
         if client_factory is None:
-            from solaredge import Solaredge
+            from solaredge import MonitoringClient
 
-            client_factory = Solaredge
+            client_factory = MonitoringClient
         self._client = client_factory(api_key)
 
-    async def __aenter__(self) -> LegacyMonitoringClient:
+    async def __aenter__(self) -> SyncMonitoringClient:
         return self
 
     async def __aexit__(self, *_: Any) -> None:
@@ -182,17 +184,17 @@ class SolarEdgeHistoryDownloader:
 def _default_client_factory() -> ClientFactory:
     try:
         from solaredge import AsyncMonitoringClient
-    except ImportError:
+    except ImportError as err:
         try:
-            from solaredge import Solaredge as legacy_client
-        except ImportError as err:
+            from solaredge import MonitoringClient
+        except ImportError as sync_err:
             raise SolarEdgeDataError(
-                f"Unable to import a supported solaredge client: {err}"
-            ) from err
-        return lambda api_key: LegacyMonitoringClient(
-            api_key, client_factory=legacy_client
+                "Unable to import a supported solaredge client: "
+                f"{sync_err}"
+            ) from sync_err
+        return lambda api_key: SyncMonitoringClient(
+            api_key, client_factory=MonitoringClient
         )
-
     return AsyncMonitoringClient
 
 
@@ -317,7 +319,7 @@ def _api_time_unit(
     granularity: DownloadGranularity,
 ) -> tuple[str, int | None]:
     if granularity is DownloadGranularity.HOURLY:
-        return "HOUR", 30
+        return "HOUR", _HOURLY_MAX_DATE_DELTA_DAYS
     if granularity is DownloadGranularity.DAILY:
         return "DAY", 365
     if granularity is DownloadGranularity.MONTHLY:
