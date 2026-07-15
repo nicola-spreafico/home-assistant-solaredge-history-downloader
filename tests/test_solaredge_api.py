@@ -156,10 +156,7 @@ async def test_hourly_download_chunks_and_deduplicates_boundaries() -> None:
         Decimal("300"),
     ]
     assert [call[2] for call in client.energy_calls] == ["HOUR"] * 4
-    assert [
-        (start.date(), end.date())
-        for start, end, _ in client.energy_calls
-    ] == [
+    assert [(start.date(), end.date()) for start, end, _ in client.energy_calls] == [
         (date(2024, 1, 1), date(2024, 1, 14)),
         (date(2024, 1, 14), date(2024, 1, 27)),
         (date(2024, 1, 27), date(2024, 2, 9)),
