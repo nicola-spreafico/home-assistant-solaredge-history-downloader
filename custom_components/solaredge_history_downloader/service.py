@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import date
+from collections.abc import Mapping
+from datetime import date, datetime
 from typing import Any
 
 import voluptuous as vol
@@ -129,6 +130,8 @@ async def async_update_history(
                 attributes=_recorded_attributes(dict(state.attributes)),
                 points=points if write_states else [],
                 stat_rows=standard_statistic_rows(points),
+                last_reset=_last_reset(state.attributes),
+                continue_live_statistics=write_states,
             )
         except Exception as err:
             raise HomeAssistantError(
@@ -165,6 +168,7 @@ async def async_update_history(
         "deleted_long_term_statistics": replacement.deleted_long_term_statistics,
         "imported_states": replacement.imported_states,
         "imported_long_term_statistics": (replacement.imported_long_term_statistics),
+        "imported_short_term_statistics": (replacement.imported_short_term_statistics),
         "calibrated_value": calibrated_value,
     }
 
@@ -254,6 +258,16 @@ def _validate_recorder_target(hass: HomeAssistant, target: TargetMeter) -> bool:
     if not recorder.is_running or not recorder.async_db_ready.done():
         raise ServiceValidationError("Home Assistant recorder is not ready")
     return recorder.entity_filter is None or recorder.entity_filter(target.entity_id)
+
+
+def _last_reset(attributes: Mapping[str, Any]) -> datetime | None:
+    """Read the target's last_reset so the seed row matches live compilation."""
+    last_reset = attributes.get("last_reset")
+    if isinstance(last_reset, datetime):
+        return last_reset
+    if isinstance(last_reset, str):
+        return dt_util.parse_datetime(last_reset)
+    return None
 
 
 def _recorded_attributes(attributes: dict[str, Any]) -> dict[str, Any]:

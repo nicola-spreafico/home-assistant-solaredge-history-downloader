@@ -7,7 +7,7 @@ import logging
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.recorder import get_instance
@@ -54,6 +54,7 @@ class ReplacementResult:
     deleted_long_term_statistics: int
     imported_states: int
     imported_long_term_statistics: int
+    imported_short_term_statistics: int
 
 
 @dataclass(slots=True)
@@ -66,6 +67,8 @@ class ReplaceHistoryTask(RecorderTask):
     attributes: Mapping[str, Any]
     points: tuple[HistoryPoint, ...]
     stat_rows: tuple[StatRow, ...]
+    last_reset: datetime | None
+    continue_live_statistics: bool
     on_done: CompletionCallback
 
     def run(self, instance: Recorder) -> None:
@@ -162,6 +165,18 @@ class ReplaceHistoryTask(RecorderTask):
             )
 
             now_timestamp = time.time()
+            # When the entity is live-compiled, the recorder summarizes the
+            # in-progress hour into a long-term row once the hour completes;
+            # an imported long-term row at that hour would collide with the
+            # summary. Rows at or after the current hour are dropped here and
+            # rebuilt live: their energy is still carried by the short-term
+            # seed row's sum below.
+            stat_rows = self.stat_rows
+            if self.continue_live_statistics:
+                current_hour_ts = int(now_timestamp // 3600) * 3600
+                stat_rows = tuple(
+                    row for row in stat_rows if row.start.timestamp() < current_hour_ts
+                )
             raw_states = [
                 States(
                     metadata_id=states_metadata_id,
@@ -184,11 +199,13 @@ class ReplaceHistoryTask(RecorderTask):
                     ),
                     now_timestamp,
                 )
-                for row in self.stat_rows
+                for row in stat_rows
             ]
             _validate_unique_statistics_starts(statistics)
+            seed_rows = self._short_term_seed_rows(statistic_metadata_id, now_timestamp)
             session.add_all(raw_states)
             session.add_all(statistics)
+            session.add_all(seed_rows)
             session.flush()
 
         return (
@@ -198,10 +215,42 @@ class ReplaceHistoryTask(RecorderTask):
                 deleted_long_term_statistics=deleted_long_term_statistics,
                 imported_states=len(raw_states),
                 imported_long_term_statistics=len(statistics),
+                imported_short_term_statistics=len(seed_rows),
             ),
             statistic_metadata_id,
             created_states_metadata,
         )
+
+    def _short_term_seed_rows(
+        self, statistic_metadata_id: int, now_timestamp: float
+    ) -> list[StatisticsShortTerm]:
+        """Build the short-term row that carries the imported sum forward.
+
+        The sensor statistics compiler continues a sensor's running sum from
+        the latest short-term row only; with every short-term row deleted the
+        sum would restart near zero on the next 5-minute compilation, making
+        every period spanning the replacement hugely negative. The seed also
+        carries the target's current ``last_reset`` so that compilation does
+        not misread the replacement as a meter reset.
+        """
+        if not self.continue_live_statistics or not self.stat_rows:
+            return []
+        # Two 5-minute slots back: past slots are never compiled again, so
+        # the imminent compilation cannot collide with the seed row.
+        seed_start_ts = int(now_timestamp // 300) * 300 - 600
+        last_row = self.stat_rows[-1]
+        return [
+            StatisticsShortTerm.from_stats(
+                statistic_metadata_id,
+                StatisticData(
+                    start=datetime.fromtimestamp(seed_start_ts, UTC),
+                    state=float(last_row.state),
+                    sum=float(last_row.sum),
+                    last_reset=self.last_reset,
+                ),
+                now_timestamp,
+            )
+        ]
 
 
 async def async_replace_history(
@@ -213,6 +262,8 @@ async def async_replace_history(
     attributes: Mapping[str, Any],
     points: list[HistoryPoint],
     stat_rows: list[StatRow],
+    last_reset: datetime | None,
+    continue_live_statistics: bool,
 ) -> ReplacementResult:
     """Queue an atomic recorder replacement and await its completion."""
     future: asyncio.Future[ReplacementResult] = hass.loop.create_future()
@@ -234,6 +285,8 @@ async def async_replace_history(
             attributes=attributes,
             points=tuple(points),
             stat_rows=tuple(stat_rows),
+            last_reset=last_reset,
+            continue_live_statistics=continue_live_statistics,
             on_done=on_done,
         )
     )

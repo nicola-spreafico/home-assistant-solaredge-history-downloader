@@ -1,6 +1,7 @@
 """Tests for atomic recorder history replacement."""
 
 import threading
+import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -117,6 +118,7 @@ def test_replace_history_commits_states_and_long_term_statistics(
     assert result.deleted_long_term_statistics == 1
     assert result.imported_states == 2
     assert result.imported_long_term_statistics == 2
+    assert result.imported_short_term_statistics == 1
     with session_factory() as session:
         states = session.query(States).order_by(States.last_updated_ts).all()
         statistics = session.query(Statistics).order_by(Statistics.start_ts).all()
@@ -125,7 +127,58 @@ def test_replace_history_commits_states_and_long_term_statistics(
         assert len({state.attributes_id for state in states}) == 1
         assert [statistic.state for statistic in statistics] == [1, 3]
         assert [statistic.sum for statistic in statistics] == [1, 3]
-        assert session.query(StatisticsShortTerm).count() == 0
+        assert session.query(StatisticsShortTerm).count() == 1
+
+
+def test_replace_history_seeds_short_term_row_with_final_sum(
+    recorder_database: tuple[FakeRecorder, sessionmaker[Session]],
+) -> None:
+    """The seed row must let the live compiler continue the imported sum."""
+    recorder, session_factory = recorder_database
+    last_reset = datetime(2024, 1, 1, tzinfo=UTC)
+    task = _task(_points(), last_reset=last_reset)
+
+    before = time.time()
+    task._replace(recorder)  # noqa: SLF001
+    after = time.time()
+
+    with session_factory() as session:
+        seed = session.query(StatisticsShortTerm).one()
+        assert seed.state == 3
+        assert seed.sum == 3
+        assert seed.last_reset_ts == last_reset.timestamp()
+        assert seed.start_ts % 300 == 0
+        # Two 5-minute slots back from the replacement time.
+        assert before // 300 * 300 - 600 <= seed.start_ts <= after // 300 * 300 - 600
+
+
+def test_replace_history_drops_long_term_rows_in_current_hour(
+    recorder_database: tuple[FakeRecorder, sessionmaker[Session]],
+) -> None:
+    """Rows in the in-progress hour would collide with live hourly summaries."""
+    recorder, session_factory = recorder_database
+    current_hour = datetime.fromtimestamp(time.time() // 3600 * 3600, UTC)
+    points = [
+        *_points(),
+        HistoryPoint(
+            start=current_hour,
+            end=current_hour + timedelta(minutes=30),
+            interval_value=Decimal("4"),
+            state=Decimal("7"),
+            sum=Decimal("7"),
+        ),
+    ]
+
+    result, _, _ = _task(points)._replace(recorder)  # noqa: SLF001
+
+    assert result.imported_long_term_statistics == 2
+    with session_factory() as session:
+        statistics = session.query(Statistics).order_by(Statistics.start_ts).all()
+        assert [statistic.sum for statistic in statistics] == [1, 3]
+        seed = session.query(StatisticsShortTerm).one()
+        # The dropped row's energy is still carried forward by the seed.
+        assert seed.sum == 7
+        assert seed.state == 7
 
 
 def test_replace_history_without_states_only_replaces_statistics(
@@ -140,6 +193,8 @@ def test_replace_history_without_states_only_replaces_statistics(
         attributes={"unit_of_measurement": "kWh"},
         points=(),
         stat_rows=tuple(standard_statistic_rows(points)),
+        last_reset=None,
+        continue_live_statistics=False,
         on_done=lambda *_: None,
     )
 
@@ -148,10 +203,12 @@ def test_replace_history_without_states_only_replaces_statistics(
     assert result.deleted_states == 2
     assert result.imported_states == 0
     assert result.imported_long_term_statistics == 2
+    assert result.imported_short_term_statistics == 0
     with session_factory() as session:
         assert session.query(States).count() == 0
         statistics = session.query(Statistics).order_by(Statistics.start_ts).all()
         assert [statistic.sum for statistic in statistics] == [1, 3]
+        assert session.query(StatisticsShortTerm).count() == 0
 
 
 def test_replace_history_rolls_back_all_deletes_on_invalid_statistics(
@@ -195,7 +252,9 @@ def _points() -> list[HistoryPoint]:
     ]
 
 
-def _task(points: list[HistoryPoint]) -> ReplaceHistoryTask:
+def _task(
+    points: list[HistoryPoint], last_reset: datetime | None = None
+) -> ReplaceHistoryTask:
     return ReplaceHistoryTask(
         entity_id=ENTITY_ID,
         name="Solar production monthly",
@@ -203,5 +262,7 @@ def _task(points: list[HistoryPoint]) -> ReplaceHistoryTask:
         attributes={"unit_of_measurement": "kWh"},
         points=tuple(points),
         stat_rows=tuple(standard_statistic_rows(points)),
+        last_reset=last_reset,
+        continue_live_statistics=True,
         on_done=lambda *_: None,
     )
