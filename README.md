@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="custom_components/solaredge_history_downloader/brand/icon.png" alt="SolarEdge History Downloader" width="128">
+  <img src="custom_components/solaredge_history_downloader/brand/icon@2x.png" alt="SolarEdge History Downloader" width="128">
 </p>
 
 # SolarEdge History Downloader
