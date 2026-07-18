@@ -13,6 +13,8 @@
 [![License: GPL-3.0](https://img.shields.io/github/license/nicola-spreafico/home-assistant-solaredge-history-downloader)](LICENSE)
 [![Buy Me a Pizza](https://img.shields.io/badge/Buy%20me%20a%20pizza-%F0%9F%8D%95-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/mf3ebnouct)
 
+**Rebuild the history of an existing Home Assistant `utility_meter` from the production data SolarEdge already has: it downloads years of energy readings from the Monitoring API and writes them back into the meter — after validation, in a single guarded transaction.**
+
 ## Why this integration exists
 
 > *"Do you have a SolarEdge installation that has been producing energy for
